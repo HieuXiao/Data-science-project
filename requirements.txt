@@ -1,0 +1,7 @@
+# requirements.txt
+pandas           # Xử lý DataFrames, đọc CSV
+numpy            # Hỗ trợ tính toán số học
+matplotlib       # Cơ bản cho Visualization
+seaborn          # Nâng cao cho Box-plot và Scatter plot
+requests         # (Giữ lại, dù không dùng API, để duy trì cấu trúc ingestion)
+beautifulsoup4   # (Giữ lại, dù không crawl web, để duy trì cấu trúc inggit estion)
