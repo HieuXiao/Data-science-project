@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -35,4 +33,3 @@ def create_box_plot_with_ratings(file_path):
     plt.show()
 
 create_box_plot_with_ratings('data/raw/fakestore_api_products.csv')  # Thay bằng đường dẫn file của bạn
->>>>>>> Stashed changes
