@@ -11,36 +11,31 @@ from src.ingestion.data_fetcher import (
     fetch_product_comments
 )
 
-# Import cleaning functions from src/utils.py
-from src.utils import clean_product_data, clean_comments_data
+# Import cleaning and merge functions from src/utils.py
+from src.utils import clean_product_data, clean_comments_data, merge_product_and_comment_data
+
+# >>> VISUALIZATION IMPORTS <<<
+# Import implemented Visualization functions
+from src.visualization.line_bar_plot import (
+    create_line_bar_plot,  # Brand Stats
+    create_line_bar_time_series_plot  # Time Series Trend
+)
 
 
-# Add imports for Visualization modules (will be needed later)
-# UNCOMMENT THESE LINES WHEN YOU IMPLEMENT THE CODE INSIDE THE CORRESPONDING FILES
-# from src.visualization.line_bar_plot import create_line_bar_plot
-# from src.visualization.box_plot import create_box_plot
-# from src.visualization.scatter_plot import create_scatter_plot
-
-# Placeholder functions for Visualization (Replace with actual code later)
-def create_line_bar_plot(input_path, output_path):
-    """Placeholder for creating a line and bar plot."""
-    pass
-
-
+# Placeholder functions for Visualization modules (to prevent NameError before implementation)
 def create_box_plot(input_path, output_path):
-    """Placeholder for creating a box plot."""
+    """Placeholder for creating a box plot. (To be implemented in src/visualization/box_plot.py)"""
+    print("\n[Visualization] Box-plot function is not yet implemented.")
     pass
 
 
 def create_scatter_plot(input_path, output_path):
-    """Placeholder for creating a scatter plot."""
+    """Placeholder for creating a scatter plot. (To be implemented in src/visualization/scatter_plot.py)"""
+    print("\n[Visualization] Scatter Plot function is not yet implemented.")
     pass
 
 
-# Placeholder function for Data Cleaning (Not strictly needed since we use run_data_cleaning)
-def clean_data(input_path):
-    """Placeholder for a generic data cleaning function."""
-    pass
+# >>> END VISUALIZATION IMPORTS <<<
 
 
 def setup_environment():
@@ -63,7 +58,7 @@ def run_data_ingestion():
     """
     print("\n--- Starting Data Ingestion workflow from Tiki ---")
 
-    # Step 1: Fetch Product IDs (Tiki Bookstore Category: 8322)
+    # Step 1: Fetch Product IDs
     df_ids = fetch_product_ids(category_id='8322', max_pages=20, output_path='data/product_id_sach.csv')
 
     if df_ids.empty:
@@ -82,82 +77,117 @@ def run_data_ingestion():
 def run_data_cleaning():
     """
     Executes the data cleaning functionality for both product details and comments data.
-    It checks for input files and saves the cleaned output.
+    It includes a final step to MERGE the two cleaned datasets.
     """
+    df_product = pd.DataFrame()
+    df_comment = pd.DataFrame()
 
-    # 1. Clean Product Details
+    # Define common file paths
     input_product_file = 'data/crawled_data_sach.csv'
     output_product_file = 'data/cleaned_product_sach.csv'
+    input_comment_file = 'data/comments_data_sach.csv'
+    output_comment_file = 'data/cleaned_comments_sach.csv'
+    output_merged_file = 'data/merged_tiki_data.csv'
 
+    # 1. Clean Product Details
     if os.path.exists(input_product_file):
         print(f"\n--- Starting cleaning for product details from {input_product_file} ---")
         df_raw = pd.read_csv(input_product_file)
-        # Call the cleaning function from src/utils.py
-        df_cleaned = clean_product_data(df_raw)
+        df_product = clean_product_data(df_raw)
 
-        # Save the cleaning result
-        if not df_cleaned.empty:
-            df_cleaned.to_csv(output_product_file, index=False)
-            print(f"✅ Saved {len(df_cleaned)} cleaned data rows to: {output_product_file}")
-    else:
-        print(f"\n⚠️ Skipping Product Details cleaning: Input file {input_product_file} not found. Please run Data Ingestion (Option 1) first.")
+        if not df_product.empty:
+            df_product.to_csv(output_product_file, index=False)
+            print(f"✅ Saved {len(df_product)} cleaned data rows to: {output_product_file}")
+        else:
+            print(f"⚠️ Skipping saving cleaned product file: DataFrame is empty (0 rows).")
 
     # 2. Clean Product Comments
-    input_comment_file = 'data/comments_data_sach.csv'
-    output_comment_file = 'data/cleaned_comments_sach.csv'
-
     if os.path.exists(input_comment_file):
         print(f"\n--- Starting cleaning for product comments from {input_comment_file} ---")
         df_raw = pd.read_csv(input_comment_file)
-        # Call the cleaning function from src/utils.py
-        df_cleaned = clean_comments_data(df_raw)
+        df_comment = clean_comments_data(df_raw)
 
-        # Save the cleaning result
-        if not df_cleaned.empty:
-            df_cleaned.to_csv(output_comment_file, index=False)
-            print(f"✅ Saved {len(df_cleaned)} cleaned data rows to: {output_comment_file}")
+        if not df_comment.empty:
+            df_comment.to_csv(output_comment_file, index=False)
+            print(f"✅ Saved {len(df_comment)} cleaned data rows to: {output_comment_file}")
+
+    # 3. MERGE DATASETS (If both clean files are available)
+    if not df_product.empty and not df_comment.empty:
+        # Load the saved clean files (or use in-memory DFs if performance is critical)
+        # Using the in-memory DFs here for simplicity and reduced I/O
+
+        df_merged = merge_product_and_comment_data(df_product, df_comment)
+
+        if not df_merged.empty:
+            df_merged.to_csv(output_merged_file, index=False)
+            print(f"✅ MERGE SUCCESSFUL. Saved {len(df_merged)} rows to: {output_merged_file}")
+        else:
+            print("⚠️ Merge resulted in an empty DataFrame. Check the data structure and keys.")
     else:
-        print(f"\n⚠️ Skipping Comments cleaning: Input file {input_comment_file} not found. Please run Data Ingestion (Option 1) first.")
+        print("\n⚠️ Cannot perform merge: One or both cleaned files are empty/missing.")
 
 
 def run_visualization_plots():
     """
     Displays the Visualization submenu and handles user plot selection.
-    It calls placeholder functions for plot creation.
     """
-    # Define input/output paths for Visualization
-    INPUT_DATA_PATH = 'data/cleaned_product_sach.csv'
+    # Define input paths for Visualization
+    INPUT_PRODUCT_PATH = 'data/cleaned_product_sach.csv'
+    INPUT_COMMENT_PATH = 'data/cleaned_comments_sach.csv'
+    INPUT_MERGED_PATH = 'data/merged_tiki_data.csv'
 
-    # Check if the data file exists
-    if not os.path.exists(INPUT_DATA_PATH):
-        print(f"\n⚠️ Error: Input data file not found: {INPUT_DATA_PATH}. Please run Data Ingestion (Option 1) first.")
+    # Check for required data files
+    if not os.path.exists(INPUT_PRODUCT_PATH) or not os.path.exists(INPUT_COMMENT_PATH):
+        print(f"\n⚠️ Error: Missing required cleaned data files. Please run Data Cleaning (Option 2) first.")
+        return
+
+    # Prioritize merged file for general plots, fallback to product file
+    input_general_path = INPUT_MERGED_PATH if os.path.exists(INPUT_MERGED_PATH) else INPUT_PRODUCT_PATH
+
+    # Ensure at least the fallback path exists for general plots
+    if not os.path.exists(input_general_path):
+        print(f"\n⚠️ Error: The necessary general input file ({input_general_path}) does not exist.")
         return
 
     while True:
+        # >>> VISUALIZATION SUBMENU <<<
         print("\n----------------------------------------------")
         print("📊 SELECT VISUALIZATION PLOT 📊")
         print("----------------------------------------------")
-        print("3.1. Line-Bar Plot (Trend analysis)")
-        print("3.2. Box-plot (Distribution & outliers)")
-        print("3.3. Scatter Plot (Variable relationships)")
+        print("3.1. Line-Bar: Brand Stats (Count & Avg Rating)")
+        print("3.1.1. Line-Bar: Rating Trend (Avg Rating by Month)")
+        print("3.2. Box-plot (Distribution & Outliers)")
+        print("3.3. Scatter Plot (Variable Relationships)")
         print("3.4. 🔙 Back to Main Menu")
         print("----------------------------------------------")
+        # >>> END VISUALIZATION SUBMENU <<<
 
         vis_choice = input("Please select plot type (e.g., 3.1): ").strip()
 
         if vis_choice=='3.1':
-            print("Creating Line-Bar Plot...")
-            # Call the actual function after implementation
-            create_line_bar_plot(input_path=INPUT_DATA_PATH, output_path='reports/line_bar_plot.png')
-            print("Called function for Line-Bar Plot (Needs implementation in src/visualization/line_bar_plot.py)")
+            print("Creating Line-Bar Brand Stats Plot...")
+            create_line_bar_plot(
+                input_path=input_general_path,
+                output_path='reports/linebar_brand_stats.png'
+            )
+            print("✅ Line-Bar Brand Stats Plot completed.")
+
+        elif vis_choice=='3.1.1':
+            print("Creating Line-Bar Rating Trend Plot...")
+            create_line_bar_time_series_plot(
+                input_path=INPUT_COMMENT_PATH,  # Uses COMMENT data only
+                output_path='reports/linebar_rating_time_series.png'
+            )
+            print("✅ Line-Bar Rating Trend Plot completed.")
+
         elif vis_choice=='3.2':
             print("Creating Box-plot...")
-            create_box_plot(input_path=INPUT_DATA_PATH, output_path='reports/box_plot.png')
-            print("Called function for Box-plot (Needs implementation in src/visualization/box_plot.py)")
+            create_box_plot(input_path=input_general_path, output_path='reports/box_plot.png')
+
         elif vis_choice=='3.3':
             print("Creating Scatter Plot...")
-            create_scatter_plot(input_path=INPUT_DATA_PATH, output_path='reports/scatter_plot.png')
-            print("Called function for Scatter Plot (Needs implementation in src/visualization/scatter_plot.py)")
+            create_scatter_plot(input_path=input_general_path, output_path='reports/scatter_plot.png')
+
         elif vis_choice=='3.4':
             break
         else:
@@ -170,7 +200,7 @@ def main_menu():
     It orchestrates the setup, ingestion, cleaning, and visualization stages.
     """
 
-    setup_environment()
+    setup_environment()  # Ensure directories exist
 
     while True:
         print("\n==============================================")
@@ -187,9 +217,9 @@ def main_menu():
         if choice=='1':
             run_data_ingestion()
         elif choice=='2':
-            run_data_cleaning()  # Call Data Cleaning function
+            run_data_cleaning()
         elif choice=='3':
-            run_visualization_plots()  # Call Visualization submenu
+            run_visualization_plots()
         elif choice=='4':
             print("Goodbye! See you again.")
             sys.exit(0)

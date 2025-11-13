@@ -1,131 +1,227 @@
+# src/visualization/line_bar_plot.py
+
 # ==============================
-# 1. IMPORT THƯ VIỆN CẦN THIẾT
+# 1. IMPORT NECESSARY LIBRARIES
 # ==============================
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import matplotlib.dates as mdates
 
-# =====================================================
-# 2. ĐỌC FILE CSV CHỨA DỮ LIỆU BOOKS (CÓ XỬ LÝ ENCODING)
-# =====================================================
-try:
-    # Thử đọc file bằng mã hóa UTF-8
-    books_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/books_to_scrape.csv', encoding='utf-8')
-except UnicodeDecodeError:
+
+# =======================================================
+# FUNCTION 1: BRAND STATS (Line-Bar Dual Axis)
+# Purpose: Compare Product Count and Average Rating by Top Brand
+# =======================================================
+def create_line_bar_plot(input_path='data/merged_tiki_data.csv', output_path='reports/linebar_brand_stats.png'):
+    """
+    Creates a dual axis Line-Bar chart showing the number of products and
+    the average rating for the Top 10 Brands.
+
+    Args:
+        input_path (str): Path to the merged data file (preferred).
+        output_path (str): Path to save the output image file.
+    """
+    print(f"\n[Visualization] Starting Line-Bar Plot (Brand Stats) from file: {input_path}")
+
+    if not os.path.exists(input_path):
+        print(f"⚠️ Error: Input file '{input_path}' not found. Skipping plot creation.")
+        return
+
     try:
-        # Nếu lỗi, thử đọc bằng Latin-1
-        books_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/books_to_scrape.csv', encoding='latin-1')
-    except:
-        # Cuối cùng thử bằng ISO-8859-1
-        books_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/books_to_scrape.csv', encoding='ISO-8859-1')
+        df = pd.read_csv(input_path, encoding='utf-8')
+    except Exception as e:
+        print(f"⚠️ Error reading CSV file: {e}.")
+        return
 
-# ========================================================
-# 3. ĐỌC FILE CSV CHỨA DỮ LIỆU PRODUCTS (CÓ XỬ LÝ ENCODING)
-# ========================================================
-try:
-    products_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/fakestore_api_products.csv', encoding='utf-8')
-except UnicodeDecodeError:
+    # --- Data Validation ---
+    required_cols_merged = ['brand_name', 'rating', 'id', 'comment_id']
+    required_cols_product = ['brand_name', 'review_count', 'id']
+
+    # Xác định chế độ chạy (Ưu tiên Merged Data)
+    is_merged = all(col in df.columns for col in required_cols_merged)
+
+    if is_merged:
+        # MERGED MODE: Dùng dữ liệu MERGED
+        brand_stats = df.groupby('brand_name').agg(
+            # Đếm số lượng sản phẩm DUY NHẤT có bình luận
+            product_count=('id', 'nunique'),
+            # Average rating của tất cả các bình luận
+            avg_rating=('rating', 'mean')
+        ).round(2)
+        count_label = 'Unique Products with Reviews'
+        line_label = 'Average Rating (Star)'
+    elif all(col in df.columns for col in required_cols_product):
+        # PRODUCT ONLY MODE: Chạy trên cleaned_product_sach.csv (dự phòng)
+        brand_stats = df.groupby('brand_name').agg(
+            product_count=('id', 'count'),
+            avg_rating=('review_count', 'mean')  # Dùng review_count TB làm chỉ số đường
+        ).round(2)
+        count_label = 'Total Product Listings'
+        line_label = 'Average Review Count'
+    else:
+        print("⚠️ Error: Data is missing required columns. Skipping plot creation.")
+        return
+
+    # --- Data Processing: Filter and Sort ---
+    # Lọc Top 10 Brands có số lượng sản phẩm/reviews lớn nhất
+    top_brands = brand_stats.sort_values(by='product_count', ascending=False).head(10)
+    top_brands = top_brands.sort_values(by='avg_rating', ascending=True)  # Sắp xếp cho đường line mượt hơn
+
+    if top_brands.empty:
+        print("⚠️ Error: Insufficient Brand data for visualization.")
+        return
+
+    # ==================================================
+    # 4. CREATE FIGURE AND DUAL AXIS PLOT
+    # ==================================================
+    fig, ax1 = plt.subplots(figsize=(14, 7))
+
+    x = np.arange(len(top_brands))
+    width = 0.6
+
+    ax2 = ax1.twinx()  # Secondary Y-axis
+
+    # --- Plot 1 (Primary Y-axis - Count) ---
+    ax1.bar(x, top_brands['product_count'], width,
+        label=count_label, color='#2E86AB', alpha=0.8)
+
+    # --- Plot 2 (Secondary Y-axis - Avg Rating/Review Count) ---
+    ax2.plot(x, top_brands['avg_rating'],
+        marker='o', linewidth=3, markersize=8,
+        color='#C73E1D', label=line_label)
+
+    # ==========================================
+    # 5. SET LABELS, TITLES, AND STYLING
+    # ==========================================
+
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(top_brands.index, rotation=30, ha='right', fontsize=10)
+    ax1.set_xlabel('Brand (Top 10)', fontsize=12, fontweight='bold')
+
+    ax1.set_ylabel(count_label, fontsize=12, fontweight='bold', color='#2E86AB')
+    ax1.tick_params(axis='y', labelcolor='#2E86AB')
+
+    ax2.set_ylabel(line_label, fontsize=12, fontweight='bold', color='#C73E1D')
+    ax2.tick_params(axis='y', labelcolor='#C73E1D')
+
+    # Đặt giới hạn trục Y cho Rating nếu là Merged data
+    if is_merged:
+        ax2.set_ylim(0, 5.0)
+
+    plt.title(f'Top 10 Brand Analysis: {count_label} vs. {line_label}', fontsize=16, fontweight='bold')
+    ax1.grid(True, alpha=0.3, linestyle='--', axis='y')
+
+    # Combine legends from both axes
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper left')
+
+    # ===================================
+    # 6. SAVE AND CLEAN UP
+    # ===================================
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"✅ Line-Bar Plot (Brand Stats) created and saved at: {output_path}")
+    plt.close(fig)
+
+
+# =======================================================
+# FUNCTION 2: TIME SERIES TREND ANALYSIS
+# Purpose: Analyze Average Rating and Review Count Trend by Month
+# =======================================================
+def create_line_bar_time_series_plot(input_path='data/cleaned_comments_sach.csv', output_path='reports/linebar_rating_time_series.png'):
+    """
+    Creates a dual axis Line-Bar chart showing the trend of Average Rating and
+    Total Review Count over time (Month-Year).
+
+    Args:
+        input_path (str): Path to the cleaned COMMENTS data file.
+        output_path (str): Path to save the output image file.
+    """
+    print(f"\n[Visualization] Starting Line-Bar Time Series Plot from file: {input_path}")
+
+    if not os.path.exists(input_path):
+        print(f"⚠️ Error: Input file '{input_path}' not found. Skipping plot creation.")
+        return
+
     try:
-        products_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/fakestore_api_products.csv', encoding='latin-1')
-    except:
-        products_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/fakestore_api_products.csv', encoding='ISO-8859-1')
+        df = pd.read_csv(input_path, encoding='utf-8')
+    except Exception as e:
+        print(f"⚠️ Error reading CSV file: {e}.")
+        return
 
-# ==================================================
-# 4. TẠO FIGURE GỒM 2 BIỂU ĐỒ (1 HÀNG, 2 CỘT SUBPLOT)
-# ==================================================
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    # --- Data Validation ---
+    if df.empty or 'created_at' not in df.columns or 'rating' not in df.columns:
+        print("⚠️ Error: Data is missing required columns ('created_at', 'rating'). Skipping plot creation.")
+        return
 
-# ==========================================
-# 5. XỬ LÝ DỮ LIỆU BOOKS VÀ VẼ BIỂU ĐỒ ax1
-# ==========================================
+    # --- 1. Process Time Column ---
+    df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
+    df.dropna(subset=['created_at'], inplace=True)
 
-# Tính giá trung bình theo rating (gom nhóm theo cột 'rating')
-books_avg_price = books_df.groupby('rating')['price'].mean().sort_index()
+    # --- 2. Aggregate Data by Month-Year ---
+    df.set_index('created_at', inplace=True)
 
-# Vẽ biểu đồ đường biểu diễn giá trung bình
-ax1.plot(books_avg_price.index, books_avg_price.values,
-         marker='o', linewidth=2, markersize=8, color='#2E86AB', label='Giá TB')
+    # Resample by Month ('M')
+    time_series_stats = df.resample('M').agg(
+        avg_rating=('rating', 'mean'),  # Average Rating
+        review_count=('id', 'count')  # Total Review Count (using comment ID count)
+    ).round(2).dropna()
 
-# Vẽ thêm cột (bar chart) để minh họa trực quan
-ax1.bar(books_avg_price.index, books_avg_price.values,
-        alpha=0.3, color='#A23B72', label='Cột giá')
+    if time_series_stats.empty:
+        print("⚠️ Error: Insufficient monthly data for time series visualization.")
+        return
 
-# Thiết lập tiêu đề, nhãn trục, lưới và chú thích
-ax1.set_xlabel('Rating (Sao)', fontsize=12, fontweight='bold')
-ax1.set_ylabel('Giá trung bình ($)', fontsize=12, fontweight='bold')
-ax1.set_title('Books: Giá Trung Bình Theo Rating', fontsize=14, fontweight='bold')
-ax1.grid(True, alpha=0.3, linestyle='--')
-ax1.legend()
+    # ==================================================
+    # 3. CREATE FIGURE AND DUAL AXIS PLOT
+    # ==================================================
+    fig, ax1 = plt.subplots(figsize=(14, 7))
 
-# Thiết lập trục x từ 1 đến 5 (giá trị rating)
-ax1.set_xticks(range(1, 6))
+    ax2 = ax1.twinx()  # Secondary Y-axis for Review Count
 
-# ===================================================
-# 6. XỬ LÝ DỮ LIỆU PRODUCTS VÀ VẼ BIỂU ĐỒ KÉP ax2
-# ===================================================
+    # --- Plot 1 (Primary Y-axis - Avg Rating) ---
+    ax1.plot(time_series_stats.index, time_series_stats['avg_rating'],
+        marker='o', linewidth=2.5, markersize=8,
+        color='#3498DB', label='Average Rating (Star)')
 
-# Gom nhóm dữ liệu theo 'category' và tính thống kê
-category_stats = products_df.groupby('category').agg({
-    'id': 'count',      # Đếm số lượng sản phẩm mỗi danh mục
-    'price': 'mean'     # Tính giá trung bình mỗi danh mục
-}).round(2)             # Làm tròn 2 chữ số thập phân
+    # --- Plot 2 (Secondary Y-axis - Review Count) ---
+    ax2.bar(time_series_stats.index, time_series_stats['review_count'],
+        width=20,  # Width set for monthly intervals
+        color='#27AE60', alpha=0.6, label='Total Review Count')
 
-# Tạo mảng vị trí trục x và bề rộng cột
-x = np.arange(len(category_stats))
-width = 0.35
+    # ==========================================
+    # 4. SET LABELS, TITLES, AND STYLING
+    # ==========================================
 
-# Tạo trục y phụ để hiển thị giá trung bình (song song với trục chính)
-ax2_twin = ax2.twinx()
+    # X-axis (Time)
+    ax1.set_xlabel('Month-Year', fontsize=12, fontweight='bold')
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax1.tick_params(axis='x', rotation=45)
 
-# Vẽ biểu đồ cột thể hiện số lượng sản phẩm
-bars = ax2.bar(x - width/2, category_stats['id'], width,
-               label='Số lượng SP', color='#F18F01', alpha=0.7)
+    # Primary Y-axis (Rating)
+    ax1.set_ylabel('Average Rating', fontsize=12, fontweight='bold', color='#3498DB')
+    ax1.tick_params(axis='y', labelcolor='#3498DB')
+    ax1.set_ylim(time_series_stats['avg_rating'].min() - 0.1, 5.0)
 
-# Vẽ biểu đồ đường thể hiện giá trung bình
-line = ax2_twin.plot(x, category_stats['price'],
-                     marker='s', linewidth=2.5, markersize=10,
-                     color='#C73E1D', label='Giá TB')
+    # Secondary Y-axis (Count)
+    ax2.set_ylabel('Total Review Count', fontsize=12, fontweight='bold', color='#27AE60')
+    ax2.tick_params(axis='y', labelcolor='#27AE60')
 
-# Thiết lập nhãn trục, tiêu đề và màu sắc trục
-ax2.set_xlabel('Danh mục', fontsize=12, fontweight='bold')
-ax2.set_ylabel('Số lượng sản phẩm', fontsize=12, fontweight='bold', color='#F18F01')
-ax2_twin.set_ylabel('Giá trung bình ($)', fontsize=12, fontweight='bold', color='#C73E1D')
-ax2.set_title('Products: Số Lượng & Giá TB Theo Danh Mục', fontsize=14, fontweight='bold')
+    # Title and Grid
+    plt.title('Customer Satisfaction Trend (Avg Rating and Review Count) by Month', fontsize=16, fontweight='bold')
+    ax1.grid(True, alpha=0.3, linestyle='--')
 
-# Cài đặt tên danh mục làm nhãn trục X
-ax2.set_xticks(x)
-ax2.set_xticklabels(category_stats.index, rotation=15, ha='right')
+    # Combine legends
+    lines, labels = ax1.get_legend_handles_labels()
+    bars, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + [bars[0]], labels + labels2, loc='upper left')
 
-# Hiển thị lưới theo trục Y
-ax2.grid(True, alpha=0.3, linestyle='--', axis='y')
-
-# Hiển thị chú thích (legend) cho 2 trục
-ax2.legend(loc='upper left')
-ax2_twin.legend(loc='upper right')
-
-# ===================================
-# 7. TINH CHỈNH & HIỂN THỊ BIỂU ĐỒ
-# ===================================
-plt.tight_layout()                                   # Căn chỉnh bố cục cho gọn
-plt.savefig('linebar_chart.png', dpi=300, bbox_inches='tight')  # Lưu ảnh chất lượng cao
-plt.show()                                           # Hiển thị biểu đồ
-
-# =====================================
-# 8. IN CÁC THỐNG KÊ TỔNG QUAN RA MÀN HÌNH
-# =====================================
-print("=" * 60)
-print("THỐNG KÊ DỮ LIỆU BOOKS")
-print("=" * 60)
-print(f"Tổng số sách: {len(books_df)}")
-print(f"Giá trung bình: ${books_df['price'].mean():.2f}")
-print(f"Rating trung bình: {books_df['rating'].mean():.2f}")
-print("\nGiá trung bình theo Rating:")
-print(books_avg_price)
-
-print("\n" + "=" * 60)
-print("THỐNG KÊ DỮ LIỆU PRODUCTS")
-print("=" * 60)
-print(f"Tổng số sản phẩm: {len(products_df)}")
-print(f"Giá trung bình: ${products_df['price'].mean():.2f}")
-print("\nThống kê theo danh mục:")
-print(category_stats)
+    # ===================================
+    # 5. SAVE AND CLEAN UP
+    # ===================================
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"✅ Line-Bar Time Series Plot created and saved at: {output_path}")
+    plt.close(fig)

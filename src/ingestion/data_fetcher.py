@@ -1,4 +1,4 @@
-# src/ingestion/data_fetcher.py
+# src/ingestion/data_fetcher.py (PHIÊN BẢN TĂNG TỐC - CẨN THẬN BỊ CHẶN!)
 
 import requests
 import time
@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 import os
 
-# --- Cấu hình chung ---
+# --- Configuration (Headers, Cookies) ---
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0',
     'Accept': 'application/json, text/plain, */*',
@@ -18,13 +18,12 @@ HEADERS = {
     'TE': 'Trailers',
 }
 
-COOKIES = {}  # Cập nhật nếu bị chặn
+COOKIES = {}
 
 
-# --- Hàm tiện ích: Parser dữ liệu ---
-
+# --- Utility Functions: Data Parsers ---
+# (Các hàm parser_product và comment_parser giữ nguyên)
 def parser_product(json):
-    """Phân tích JSON chi tiết sản phẩm thành một dict phẳng."""
     d = dict()
     d['id'] = json.get('id')
     d['sku'] = json.get('sku')
@@ -36,21 +35,16 @@ def parser_product(json):
     d['review_count'] = json.get('review_count')
     d['order_count'] = json.get('order_count')
     d['product_name'] = json.get('meta_title')
-
-    # Xử lý Brand và Stock
     brand = json.get('brand')
     d['brand_id'] = brand.get('id') if brand else None
     d['brand_name'] = brand.get('name') if brand else None
-
     stock = json.get('stock_item')
     d['stock_item_qty'] = stock.get('qty') if stock else None
     d['stock_item_max_sale_qty'] = stock.get('max_sale_qty') if stock else None
-
     return d
 
 
 def comment_parser(json):
-    """Phân tích JSON bình luận thành một dict phẳng."""
     d = dict()
     d['id'] = json.get('id')
     d['title'] = json.get('title')
@@ -59,20 +53,19 @@ def comment_parser(json):
     d['customer_id'] = json.get('customer_id')
     d['rating'] = json.get('rating')
     d['created_at'] = json.get('created_at')
-
-    # Xử lý Created By
     created_by = json.get('created_by')
     d['customer_name'] = created_by.get('name') if created_by else 'Ẩn danh'
     d['purchased_at'] = created_by.get('purchased_at') if created_by else None
-    d['product_id'] = json.get('product_id')
-
+    d['product_id'] = json.get('product_id') 
     return d
 
 
-# --- Các hàm chính cho Data Ingestion ---
+# --- Core Functions: Data Ingestion Steps ---
 
 def fetch_product_ids(category_id='8322', max_pages=20, output_path='data/product_id_sach.csv'):
-    """Lấy danh sách ID sản phẩm từ API theo danh mục."""
+    """
+    Fetches product IDs with reduced sleep time.
+    """
     print(f"Bắt đầu crawl ID sản phẩm cho Category ID: {category_id}")
     params = {
         'limit': '48',
@@ -90,7 +83,7 @@ def fetch_product_ids(category_id='8322', max_pages=20, output_path='data/produc
         params['page'] = i
         response = requests.get('https://tiki.vn/api/v2/products', headers=HEADERS, params=params)
 
-        if response.status_code==200:
+        if response.status_code == 200:
             print(f'  -> Request page {i} success ({len(response.json().get("data"))} items)')
             for record in response.json().get('data'):
                 product_id_list.append({'id': record.get('id')})
@@ -98,7 +91,8 @@ def fetch_product_ids(category_id='8322', max_pages=20, output_path='data/produc
             print(f'  -> Request page {i} failed with status code: {response.status_code}. Stopping.')
             break
 
-        time.sleep(random.uniform(3, 10))
+        # TĂNG TỐC ĐỘ: Giảm độ trễ từ 3-10s xuống 0.5-1.0s
+        time.sleep(random.uniform(0.5, 1.0))
 
     df = pd.DataFrame(product_id_list)
     df.to_csv(output_path, index=False)
@@ -107,11 +101,13 @@ def fetch_product_ids(category_id='8322', max_pages=20, output_path='data/produc
 
 
 def fetch_product_details(input_path='data/product_id_sach.csv', output_path='data/crawled_data_sach.csv'):
-    """Crawl chi tiết sản phẩm dựa trên danh sách ID đã có."""
+    """
+    Crawls detailed product information with significantly reduced sleep time.
+    """
     print(f"\nBắt đầu crawl chi tiết sản phẩm từ file ID: {input_path}")
 
     if not os.path.exists(input_path):
-        print(f"Lỗi: Không tìm thấy file ID tại {input_path}.")
+        print(f"Lỗi: Không tìm thấy file ID tại {input_path}. Skipping.")
         return pd.DataFrame()
 
     df_id = pd.read_csv(input_path)
@@ -121,12 +117,13 @@ def fetch_product_details(input_path='data/product_id_sach.csv', output_path='da
     product_params = (('platform', 'web'),)
 
     for pid in tqdm(p_ids, total=len(p_ids)):
-        time.sleep(random.uniform(3, 5))
+        # TĂNG TỐC ĐỘ: Giảm độ trễ từ 3-5s xuống 0.1-0.3s (RỦI RO CAO)
+        time.sleep(random.uniform(0.1, 0.3))
 
         url = f'https://tiki.vn/api/v2/products/{pid}'
         response = requests.get(url, headers=HEADERS, params=product_params, cookies=COOKIES)
 
-        if response.status_code==200:
+        if response.status_code == 200:
             result.append(parser_product(response.json()))
         else:
             print(f'\nCrawl data {pid} failed with status code: {response.status_code}')
@@ -138,11 +135,13 @@ def fetch_product_details(input_path='data/product_id_sach.csv', output_path='da
 
 
 def fetch_product_comments(input_path='data/product_id_sach.csv', max_comment_pages=5, output_path='data/comments_data_sach.csv'):
-    """Crawl bình luận sản phẩm dựa trên danh sách ID đã có."""
+    """
+    Crawls product comments with minimal sleep time.
+    """
     print(f"\nBắt đầu crawl bình luận sản phẩm từ file ID: {input_path}")
 
     if not os.path.exists(input_path):
-        print(f"Lỗi: Không tìm thấy file ID tại {input_path}.")
+        print(f"Lỗi: Không tìm thấy file ID tại {input_path}. Skipping.")
         return pd.DataFrame()
 
     df_id = pd.read_csv(input_path)
@@ -162,19 +161,19 @@ def fetch_product_comments(input_path='data/product_id_sach.csv', max_comment_pa
         for i in range(1, max_comment_pages + 1):
             comment_params['page'] = i
 
-            time.sleep(random.uniform(0.5, 1.5))
+            # TĂNG TỐC ĐỘ: Giảm độ trễ từ 0.5-1.5s xuống 0.05-0.15s (RỦI RO CAO)
+            time.sleep(random.uniform(0.05, 0.15))
 
             try:
                 response = requests.get('https://tiki.vn/api/v2/reviews', headers=HEADERS, params=comment_params, cookies=COOKIES)
 
-                if response.status_code==200:
+                if response.status_code == 200:
                     data = response.json()
 
                     if not data.get('data'):
                         break
 
                     for comment in data.get('data'):
-                        # Thêm product_id vào comment trước khi parse
                         comment['product_id'] = pid
                         result.append(comment_parser(comment))
                 else:
