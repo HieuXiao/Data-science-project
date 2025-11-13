@@ -165,9 +165,9 @@ def create_line_bar_time_series_plot(input_path='data/cleaned_comments_sach.csv'
     df.set_index('created_at', inplace=True)
 
     # Resample by Month ('M')
-    time_series_stats = df.resample('M').agg(
+    time_series_stats = df.resample('ME').agg(
         avg_rating=('rating', 'mean'),  # Average Rating
-        review_count=('id', 'count')  # Total Review Count (using comment ID count)
+        review_count=('comment_id', 'count')  # Total Review Count (Sử dụng ID bình luận)
     ).round(2).dropna()
 
     if time_series_stats.empty:

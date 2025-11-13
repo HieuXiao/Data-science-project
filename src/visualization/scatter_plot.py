@@ -4,18 +4,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-import numpy as np
 
 
 def create_scatter_plot(input_path, output_path):
     """
     Creates a Scatter Plot to analyze the relationship between Review Length
     (character count) and the Rating Score.
-
-    TASK (P3):
-    1. Create new column: 'review_length' (character count of 'content').
-    2. Plot: X = Review Length, Y = Rating.
-    3. Calculate Correlation and provide analysis.
 
     Args:
         input_path (str): Path to the merged CSV file.
