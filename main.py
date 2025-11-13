@@ -17,18 +17,20 @@ from src.utils import clean_product_data, clean_comments_data, merge_product_and
 # >>> VISUALIZATION IMPORTS <<<
 # Import implemented Visualization functions
 from src.visualization.line_bar_plot import (
-    create_line_bar_plot,  # Brand Stats
-    create_line_bar_time_series_plot  # Time Series Trend
+    create_line_bar_plot,  # Brand Stats (Placeholder in current Task flow)
+    create_line_bar_time_series_plot  # Time Series Trend (P1)
 )
 
-
-# Placeholder functions for Visualization modules (to prevent NameError before implementation)
-def create_box_plot(input_path, output_path):
-    """Placeholder for creating a box plot. (To be implemented in src/visualization/box_plot.py)"""
-    print("\n[Visualization] Box-plot function is not yet implemented.")
-    pass
+# Import Box Plot function (P2)
+from src.visualization.box_plot import create_box_plot
 
 
+# NOTE: The user's provided main.py used a placeholder function,
+# but for a complete solution, we import the actual function from the dedicated file.
+
+
+# Placeholder functions for Visualization modules (Placeholder is no longer needed since
+# we use the actual function from src/visualization/box_plot.py, but keeping for structure)
 def create_scatter_plot(input_path, output_path):
     """Placeholder for creating a scatter plot. (To be implemented in src/visualization/scatter_plot.py)"""
     print("\n[Visualization] Scatter Plot function is not yet implemented.")
@@ -113,7 +115,6 @@ def run_data_cleaning():
 
     # 3. MERGE DATASETS (If both clean files are available)
     if not df_product.empty and not df_comment.empty:
-        # Load the saved clean files (or use in-memory DFs if performance is critical)
         # Using the in-memory DFs here for simplicity and reduced I/O
 
         df_merged = merge_product_and_comment_data(df_product, df_comment)
@@ -130,6 +131,7 @@ def run_data_cleaning():
 def run_visualization_plots():
     """
     Displays the Visualization submenu and handles user plot selection.
+    Menu is updated to reflect only relevant tasks (P1 and P2).
     """
     # Define input paths for Visualization
     INPUT_PRODUCT_PATH = 'data/cleaned_product_sach.csv'
@@ -141,57 +143,47 @@ def run_visualization_plots():
         print(f"\n⚠️ Error: Missing required cleaned data files. Please run Data Cleaning (Option 2) first.")
         return
 
-    # Prioritize merged file for general plots, fallback to product file
-    input_general_path = INPUT_MERGED_PATH if os.path.exists(INPUT_MERGED_PATH) else INPUT_PRODUCT_PATH
+    # Prioritize merged file for general plots
+    input_general_path = INPUT_MERGED_PATH
 
-    # Ensure at least the fallback path exists for general plots
+    # Ensure the required file exists
     if not os.path.exists(input_general_path):
         print(f"\n⚠️ Error: The necessary general input file ({input_general_path}) does not exist.")
         return
 
     while True:
-        # >>> VISUALIZATION SUBMENU <<<
+        # >>> VISUALIZATION SUBMENU (UPDATED FOR P1 & P2) <<<
         print("\n----------------------------------------------")
         print("📊 SELECT VISUALIZATION PLOT 📊")
         print("----------------------------------------------")
-        print("3.1. Line-Bar: Brand Stats (Count & Avg Rating)")
-        print("3.1.1. Line-Bar: Rating Trend (Avg Rating by Month)")
-        print("3.2. Box-plot (Distribution & Outliers)")
-        print("3.3. Scatter Plot (Variable Relationships)")
-        print("3.4. 🔙 Back to Main Menu")
+        print("3.1. Line-Bar: Rating Trend (Avg Rating by Month)")
+        print("3.2. Box-plot: Rating Distribution by Brand (Top 10)")
+        print("3.3. 🔙 Back to Main Menu")
         print("----------------------------------------------")
         # >>> END VISUALIZATION SUBMENU <<<
 
         vis_choice = input("Please select plot type (e.g., 3.1): ").strip()
 
         if vis_choice=='3.1':
-            print("Creating Line-Bar Brand Stats Plot...")
-            create_line_bar_plot(
-                input_path=input_general_path,
-                output_path='reports/linebar_brand_stats.png'
-            )
-            print("✅ Line-Bar Brand Stats Plot completed.")
-
-        elif vis_choice=='3.1.1':
             print("Creating Line-Bar Rating Trend Plot...")
             create_line_bar_time_series_plot(
-                input_path=INPUT_COMMENT_PATH,  # Uses COMMENT data only
+                input_path=INPUT_MERGED_PATH,
                 output_path='reports/linebar_rating_time_series.png'
             )
             print("✅ Line-Bar Rating Trend Plot completed.")
 
         elif vis_choice=='3.2':
-            print("Creating Box-plot...")
-            create_box_plot(input_path=input_general_path, output_path='reports/box_plot.png')
+            print("Creating Box Plot (Rating Distribution by Brand)...")
+            create_box_plot(
+                input_path=INPUT_MERGED_PATH,
+                output_path='reports/boxplot_rating_by_brand.png'
+            )
+            print("✅ Box Plot completed.")
 
-        elif vis_choice=='3.3':
-            print("Creating Scatter Plot...")
-            create_scatter_plot(input_path=input_general_path, output_path='reports/scatter_plot.png')
-
-        elif vis_choice=='3.4':
+        elif vis_choice=='3.3':  # Back to Main Menu
             break
         else:
-            print("Invalid choice. Please re-enter (e.g., 3.1 or 3.4).")
+            print("Invalid choice. Please re-enter (e.g., 3.1 or 3.3).")
 
 
 def main_menu():
