@@ -24,18 +24,10 @@ from src.visualization.line_bar_plot import (
 # Import Box Plot function (P2)
 from src.visualization.box_plot import create_box_plot
 
+# Import Scatter Plot function (P3)
+from src.visualization.scatter_plot import create_scatter_plot  # <<< ĐÃ THÊM
 
-# NOTE: The user's provided main.py used a placeholder function,
-# but for a complete solution, we import the actual function from the dedicated file.
-
-
-# Placeholder functions for Visualization modules (Placeholder is no longer needed since
-# we use the actual function from src/visualization/box_plot.py, but keeping for structure)
-def create_scatter_plot(input_path, output_path):
-    """Placeholder for creating a scatter plot. (To be implemented in src/visualization/scatter_plot.py)"""
-    print("\n[Visualization] Scatter Plot function is not yet implemented.")
-    pass
-
+# NOTE: Placeholder for create_scatter_plot has been removed since the function is now implemented.
 
 # >>> END VISUALIZATION IMPORTS <<<
 
@@ -131,7 +123,7 @@ def run_data_cleaning():
 def run_visualization_plots():
     """
     Displays the Visualization submenu and handles user plot selection.
-    Menu is updated to reflect only relevant tasks (P1 and P2).
+    Menu is updated to reflect all relevant tasks (P1, P2, and P3).
     """
     # Define input paths for Visualization
     INPUT_PRODUCT_PATH = 'data/cleaned_product_sach.csv'
@@ -152,13 +144,14 @@ def run_visualization_plots():
         return
 
     while True:
-        # >>> VISUALIZATION SUBMENU (UPDATED FOR P1 & P2) <<<
+        # >>> VISUALIZATION SUBMENU (UPDATED FOR P1, P2 & P3) <<<
         print("\n----------------------------------------------")
         print("📊 SELECT VISUALIZATION PLOT 📊")
         print("----------------------------------------------")
         print("3.1. Line-Bar: Rating Trend (Avg Rating by Month)")
         print("3.2. Box-plot: Rating Distribution by Brand (Top 10)")
-        print("3.3. 🔙 Back to Main Menu")
+        print("3.3. Scatter-plot: Review Length vs. Rating (P3)")  # <<< ĐÃ THÊM
+        print("3.4. 🔙 Back to Main Menu")  # <<< ĐÃ CẬP NHẬT
         print("----------------------------------------------")
         # >>> END VISUALIZATION SUBMENU <<<
 
@@ -180,10 +173,18 @@ def run_visualization_plots():
             )
             print("✅ Box Plot completed.")
 
-        elif vis_choice=='3.3':  # Back to Main Menu
+        elif vis_choice=='3.3':  # <<< ĐÃ THÊM LOGIC CHO SCATTER PLOT
+            print("Creating Scatter Plot (Review Length vs. Rating)...")
+            create_scatter_plot(
+                input_path=INPUT_MERGED_PATH,
+                output_path='reports/scatterplot_review_length_vs_rating.png'
+            )
+            print("✅ Scatter Plot completed.")
+
+        elif vis_choice=='3.4':  # Back to Main Menu
             break
         else:
-            print("Invalid choice. Please re-enter (e.g., 3.1 or 3.3).")
+            print("Invalid choice. Please re-enter (e.g., 3.1 or 3.4).")
 
 
 def main_menu():

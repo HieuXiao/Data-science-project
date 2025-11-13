@@ -77,6 +77,7 @@ def clean_comments_data(df: pd.DataFrame) -> pd.DataFrame:
     Cleaning steps include:
     1. Dropping rows with missing essential columns (ID, Rating).
     2. Converting date columns (timestamps) to datetime format.
+       >>> CHÚ Ý: ĐÃ ĐỔI TỪ unit='ms' SANG unit='s' <<<
     3. Ensuring rating is a clean integer (filling NaN with 0).
     4. Filling missing values in string columns with an empty string.
 
@@ -110,8 +111,8 @@ def clean_comments_data(df: pd.DataFrame) -> pd.DataFrame:
     date_cols = ['created_at', 'purchased_at']
     for col in date_cols:
         if col in df_cleaned.columns:
-            # Convert Unix milliseconds to datetime objects
-            df_cleaned[col] = pd.to_datetime(df_cleaned[col], unit='ms', errors='coerce')
+            # Convert Unix timestamp to datetime objects, assuming unit is SECONDS ('s')
+            df_cleaned[col] = pd.to_datetime(df_cleaned[col], unit='s', errors='coerce') # <<< ĐÃ SỬA TỪ 'ms' THÀNH 's'
 
     # Convert 'rating' to integer (filling NaN with 0 for safety)
     df_cleaned['rating'] = pd.to_numeric(df_cleaned['rating'], errors='coerce').fillna(0).astype(int)
@@ -124,7 +125,6 @@ def clean_comments_data(df: pd.DataFrame) -> pd.DataFrame:
 
     print("[Cleaning] Comments data cleaning completed.")
     return df_cleaned
-
 
 def merge_product_and_comment_data(product_df: pd.DataFrame, comment_df: pd.DataFrame) -> pd.DataFrame:
     """

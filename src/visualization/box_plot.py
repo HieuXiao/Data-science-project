@@ -11,11 +11,6 @@ def create_box_plot(input_path, output_path, top_n=10):
     Creates a Box Plot to analyze the dispersion (distribution and outliers) of 
     rating scores across the Top N brands with the highest review count.
 
-    TASK (P2): 
-    1. Filter the Top N Brands by review count.
-    2. Create a Box Plot to compare rating distribution.
-    3. Analyze stability (small box) vs. dissatisfaction (outliers).
-
     Args:
         input_path (str): Path to the merged CSV file.
         output_path (str): Path to save the Box Plot image.
@@ -34,7 +29,11 @@ def create_box_plot(input_path, output_path, top_n=10):
         # Ensure necessary columns are present and clean
         df.dropna(subset=['brand_name', 'rating'], inplace=True)
         df['brand_name'] = df['brand_name'].astype(str).str.strip()
-        df['rating'] = pd.to_numeric(df['rating'], errors='coerce').fillna(0).astype(int)
+
+        # Convert rating to numeric, coerce errors to NaN, then convert to integer after dropping NaNs
+        df['rating'] = pd.to_numeric(df['rating'], errors='coerce')
+        df.dropna(subset=['rating'], inplace=True)
+        df['rating'] = df['rating'].astype(int)  # Rating should be discrete 1-5 integer
 
         # 2. Identify Top N Brands by Review Count
         brand_counts = df.groupby('brand_name')['comment_id'].size().sort_values(ascending=False)
