@@ -1,112 +1,85 @@
-# ================================
-# 1. IMPORT THƯ VIỆN CẦN THIẾT
-# ================================
+# src/visualization/scatter_plot.py
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import ast   # dùng để thay eval() cho an toàn
+import os
+import numpy as np
 
-# =========================================
-# 2. ĐỌC FILE CSV (CÓ XỬ LÝ ENCODING)
-# =========================================
-file_path = r"fakestore_api_products.csv"
 
-try:
-    df = pd.read_csv(file_path, encoding='utf-8')
-except UnicodeDecodeError:
+def create_scatter_plot(input_path, output_path):
+    """
+    Creates a Scatter Plot to analyze the relationship between Review Length
+    (character count) and the Rating Score.
+
+    TASK (P3):
+    1. Create new column: 'review_length' (character count of 'content').
+    2. Plot: X = Review Length, Y = Rating.
+    3. Calculate Correlation and provide analysis.
+
+    Args:
+        input_path (str): Path to the merged CSV file.
+        output_path (str): Path to save the Scatter Plot image.
+    """
+    print(f"\n[Visualization] Starting Scatter Plot (Review Length vs. Rating) from: {input_path}")
+
+    if not os.path.exists(input_path):
+        print(f"⚠️ ERROR: File not found at path: {input_path}")
+        return
+
     try:
-        df = pd.read_csv(file_path, encoding='latin1')
-    except:
-        df = pd.read_csv(file_path, encoding='ISO-8859-1')
+        # 1. Load Data and Preprocessing
+        df = pd.read_csv(input_path)
 
-# ======================================================
-# 3. XỬ LÝ CỘT "rating" — TÁCH rate & count RA RIÊNG
-# ======================================================
-# rating = "{'rate': 3.9, 'count': 120}"
+        # Fill NaN content with empty string and calculate length (character count)
+        df['content'] = df['content'].fillna('')
+        df['review_length'] = df['content'].apply(len)
 
-if 'rating' in df.columns:
+        # Filter for valid reviews (non-zero length and valid rating)
+        df_filtered = df[(df['review_length'] > 0) & (df['rating'] >= 1) & (df['rating'] <= 5)].copy()
 
-    # Sử dụng literal_eval() để chuyển string thành dictionary an toàn
-    df['rating_dict'] = df['rating'].apply(lambda x: ast.literal_eval(x))
+        if df_filtered.empty:
+            print("⚠️ WARNING: No reviews with content found for analysis.")
+            return
 
-    # Tách ra 2 cột mới
-    df['rating_rate'] = df['rating_dict'].apply(lambda d: d['rate'])
-    df['rating_count'] = df['rating_dict'].apply(lambda d: d['count'])
+        # 2. Create Scatter Plot with Regression Line
+        plt.figure(figsize=(10, 6))
 
-    # Xoá cột rating cũ cho sạch
-    df = df.drop(['rating', 'rating_dict'], axis=1)
+        # Use regplot for scatter and linear regression line.
+        # Jitter (y_jitter=0.15) is added to the discrete Y-axis (Rating 1-5)
+        # to show the density of overlapping points more clearly.
+        sns.regplot(
+            x='review_length',
+            y='rating',
+            data=df_filtered,
+            x_jitter=0,
+            y_jitter=0.15,
+            scatter_kws={'alpha': 0.05, 's': 20, 'color': '#1f77b4'},
+            line_kws={'color': '#d62728', 'lw': 3}
+        )
 
-# Chuẩn hoá tên cột
-df.columns = df.columns.str.lower().str.strip()
+        # 3. Calculate Correlation
+        correlation = df_filtered['review_length'].corr(df_filtered['rating'])
 
-# =========================================
-# 4. IN MỘT SỐ DÒNG ĐỂ KIỂM TRA
-# =========================================
-print("\n=== SAMPLE DATA AFTER CLEANING ===")
-print(df[['title', 'price', 'rating_rate', 'rating_count']].head())
+        # 4. Calculate Average Length per Rating for detailed analysis
+        avg_length_by_rating = df_filtered.groupby('rating')['review_length'].mean().sort_index()
 
-# ==========================================================
-# 5. THỐNG KÊ TỔNG QUAN — PHẦN QUAN TRỌNG CỦA PHASE 3
-# ==========================================================
-print("\n==============================")
-print("📊 OVERVIEW STATISTICS")
-print("==============================")
+        plt.title(f'Review Length vs. Rating Score (Correlation: {correlation:.4f})', fontsize=16, fontweight='bold')
+        plt.xlabel('Review Length (Character Count)', fontsize=12, fontweight='bold')
+        plt.ylabel('Rating Score (1-5 Stars)', fontsize=12, fontweight='bold')
+        plt.yticks(ticks=[1, 2, 3, 4, 5])
+        plt.ylim(0.5, 5.5)
+        plt.grid(axis='y', linestyle='--', alpha=0.6)
 
-print(f"Tổng số sản phẩm: {len(df)}")
-print(f"Giá trung bình: {df['price'].mean():.2f} $")
-print(f"Rating trung bình: {df['rating_rate'].mean():.2f}")
-print(f"Số lượt đánh giá trung bình: {df['rating_count'].mean():.1f}")
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=300)
+        plt.close()
 
-print("\nGiá trị nhỏ nhất & lớn nhất:")
-print(f"  • Giá min: {df['price'].min()} $")
-print(f"  • Giá max: {df['price'].max()} $")
-print(f"  • Rating count min: {df['rating_count'].min()}")
-print(f"  • Rating count max: {df['rating_count'].max()}")
+        print(f"✅ Scatter Plot successfully saved to: {output_path}")
 
-print("\nThống kê mô tả chi tiết:")
-print(df[['price', 'rating_rate', 'rating_count']].describe())
+        # Output analysis data
+        print("\n--- Average Review Length by Rating Score ---")
+        print(avg_length_by_rating.to_markdown())
 
-# ==========================================================
-# 6. TẠO SCATTER PLOT: PRICE vs RATING_COUNT (Như yêu cầu)
-# ==========================================================
-print("\n--- Creating Scatter Plot (Price vs Market Demand) ---")
-
-plt.figure(figsize=(10, 6))
-
-sns.scatterplot(
-    data=df,
-    x='price',
-    y='rating_count',
-    hue='category',     # phân màu theo danh mục
-    s=120,
-    alpha=0.75
-)
-
-# Tiêu đề + nhãn trục
-plt.title('Scatter Plot: Price vs Market Demand', fontsize=14, fontweight='bold')
-plt.xlabel('Price ($)', fontsize=12)
-plt.ylabel('Rating Count (Market Demand)', fontsize=12)
-
-# Legend
-plt.legend(title="Category", bbox_to_anchor=(1.05, 1), loc='upper left')
-
-# Grid
-plt.grid(True, linestyle='--', linewidth=0.6, alpha=0.5)
-
-plt.tight_layout()
-plt.show()
-
-# =======================================
-# 7. GỢI Ý GIẢI THÍCH — ĐỂ VIẾT VÀO REPORT
-# =======================================
-print("\n=== INSIGHT GỢI Ý CHO BÁO CÁO ===")
-print("""
-• Biểu đồ scatter giúp quan sát mối quan hệ giữa giá sản phẩm và nhu cầu thị trường.
-• rating_count đại diện cho nhu cầu (sản phẩm được nhiều người đánh giá → nhiều người mua).
-• Thường thấy:
-    - Sản phẩm giá thấp → rating_count cao.
-    - Sản phẩm giá cao → rating_count thấp.
-• Đây là phân tích quan trọng trong Phase 3 vì thể hiện trực quan:
-    X-axis: Price → yếu tố kinh tế
-    Y-axis: Rating Count → hành vi người tiêu dùng
-""")
+    except Exception as e:
+        print(f"❌ ERROR during Scatter Plot creation: {e}")

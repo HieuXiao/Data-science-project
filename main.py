@@ -157,7 +157,7 @@ def run_visualization_plots():
         print("3.1. Line-Bar: Brand Stats (Count & Avg Rating)")
         print("3.1.1. Line-Bar: Rating Trend (Avg Rating by Month)")
         print("3.2. Box-plot (Distribution & Outliers)")
-        print("3.3. Scatter Plot (Variable Relationships)")
+        print("3.3. Scatter Plot: Review Length vs. Rating")
         print("3.4. 🔙 Back to Main Menu")
         print("----------------------------------------------")
         # >>> END VISUALIZATION SUBMENU <<<
@@ -184,9 +184,15 @@ def run_visualization_plots():
             print("Creating Box-plot...")
             create_box_plot(input_path=input_general_path, output_path='reports/box_plot.png')
 
+
         elif vis_choice=='3.3':
-            print("Creating Scatter Plot...")
-            create_scatter_plot(input_path=input_general_path, output_path='reports/scatter_plot.png')
+            print("Creating Scatter Plot (Review Length vs. Rating)...")
+            # Cần đảm bảo hàm create_scatter_plot được import từ đúng file
+            create_scatter_plot(
+                input_path=INPUT_MERGED_PATH,
+                output_path='reports/scatter_review_length_vs_rating.png'
+            )
+            print("✅ Scatter Plot completed.")
 
         elif vis_choice=='3.4':
             break
