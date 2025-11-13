@@ -4,6 +4,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import ast   # dùng để thay eval() cho an toàn
 
 # =========================================
 # 2. ĐỌC FILE CSV (CÓ XỬ LÝ ENCODING)
@@ -11,48 +12,63 @@ import seaborn as sns
 file_path = r"fakestore_api_products.csv"
 
 try:
-    # Thử đọc bằng UTF-8
     df = pd.read_csv(file_path, encoding='utf-8')
 except UnicodeDecodeError:
     try:
-        # Nếu lỗi, dùng Latin-1
         df = pd.read_csv(file_path, encoding='latin1')
     except:
-        # Cuối cùng thử ISO-8859-1
         df = pd.read_csv(file_path, encoding='ISO-8859-1')
 
-# ======================================================================
-# 3. XỬ LÝ CỘT "rating" — CHUYỂN JSON THÀNH 2 CỘT: rate & count
-# ======================================================================
-# rating trong file có dạng:  "{'rate': 3.9, 'count': 120}"
+# ======================================================
+# 3. XỬ LÝ CỘT "rating" — TÁCH rate & count RA RIÊNG
+# ======================================================
+# rating = "{'rate': 3.9, 'count': 120}"
 
 if 'rating' in df.columns:
 
-    # Tách rating thành rating_rate và rating_count
-    df['rating_rate'] = df['rating'].apply(lambda x: eval(x)['rate'])
-    df['rating_count'] = df['rating'].apply(lambda x: eval(x)['count'])
+    # Sử dụng literal_eval() để chuyển string thành dictionary an toàn
+    df['rating_dict'] = df['rating'].apply(lambda x: ast.literal_eval(x))
 
-    # Xóa cột rating gốc vì không còn cần thiết
-    df = df.drop('rating', axis=1)
+    # Tách ra 2 cột mới
+    df['rating_rate'] = df['rating_dict'].apply(lambda d: d['rate'])
+    df['rating_count'] = df['rating_dict'].apply(lambda d: d['count'])
 
-# Chuẩn hóa tên cột về dạng chữ thường + loại bỏ khoảng trắng
+    # Xoá cột rating cũ cho sạch
+    df = df.drop(['rating', 'rating_dict'], axis=1)
+
+# Chuẩn hoá tên cột
 df.columns = df.columns.str.lower().str.strip()
 
 # =========================================
-# 4. IN MỘT SỐ DÒNG ĐỂ KIỂM TRA DỮ LIỆU
+# 4. IN MỘT SỐ DÒNG ĐỂ KIỂM TRA
 # =========================================
 print("\n=== SAMPLE DATA AFTER CLEANING ===")
 print(df[['title', 'price', 'rating_rate', 'rating_count']].head())
 
 # ==========================================================
-# 5. TẠO SCATTER PLOT: PRICE vs RATING_COUNT (DEMAND)
+# 5. THỐNG KÊ TỔNG QUAN — PHẦN QUAN TRỌNG CỦA PHASE 3
 # ==========================================================
-# Theo tài liệu phase 3:
-# Scatter plot dùng để tìm mối quan hệ giữa 2 biến số liên tục.
-# Ở đây: 
-#    - price: giá sản phẩm 
-#    - rating_count: số lượt đánh giá (nhu cầu thị trường)
+print("\n==============================")
+print("📊 OVERVIEW STATISTICS")
+print("==============================")
 
+print(f"Tổng số sản phẩm: {len(df)}")
+print(f"Giá trung bình: {df['price'].mean():.2f} $")
+print(f"Rating trung bình: {df['rating_rate'].mean():.2f}")
+print(f"Số lượt đánh giá trung bình: {df['rating_count'].mean():.1f}")
+
+print("\nGiá trị nhỏ nhất & lớn nhất:")
+print(f"  • Giá min: {df['price'].min()} $")
+print(f"  • Giá max: {df['price'].max()} $")
+print(f"  • Rating count min: {df['rating_count'].min()}")
+print(f"  • Rating count max: {df['rating_count'].max()}")
+
+print("\nThống kê mô tả chi tiết:")
+print(df[['price', 'rating_rate', 'rating_count']].describe())
+
+# ==========================================================
+# 6. TẠO SCATTER PLOT: PRICE vs RATING_COUNT (Như yêu cầu)
+# ==========================================================
 print("\n--- Creating Scatter Plot (Price vs Market Demand) ---")
 
 plt.figure(figsize=(10, 6))
@@ -61,38 +77,36 @@ sns.scatterplot(
     data=df,
     x='price',
     y='rating_count',
-    hue='category',     # phân loại theo danh mục
-    s=120,              # kích thước điểm
-    alpha=0.75          # độ trong suốt giúp nhìn rõ điểm chồng lấp
+    hue='category',     # phân màu theo danh mục
+    s=120,
+    alpha=0.75
 )
 
-# ==================================================
-# 6. CÀI ĐẶT TRỤC, TIÊU ĐỀ, CHÚ THÍCH, GRID
-# ==================================================
+# Tiêu đề + nhãn trục
 plt.title('Scatter Plot: Price vs Market Demand', fontsize=14, fontweight='bold')
 plt.xlabel('Price ($)', fontsize=12)
 plt.ylabel('Rating Count (Market Demand)', fontsize=12)
 
+# Legend
 plt.legend(title="Category", bbox_to_anchor=(1.05, 1), loc='upper left')
 
-# Thêm đường lưới để biểu đồ dễ đọc hơn
+# Grid
 plt.grid(True, linestyle='--', linewidth=0.6, alpha=0.5)
 
-# Hiển thị biểu đồ
 plt.tight_layout()
 plt.show()
 
 # =======================================
-# 7. GIẢI THÍCH Ý NGHĨA (GỢI Ý REPORT)
+# 7. GỢI Ý GIẢI THÍCH — ĐỂ VIẾT VÀO REPORT
 # =======================================
-print("\n=== INSIGHT GỢI Ý (DÙNG CHO PHẦN REPORT) ===")
+print("\n=== INSIGHT GỢI Ý CHO BÁO CÁO ===")
 print("""
-- Scatter Plot này giúp kiểm tra mối quan hệ giữa giá và nhu cầu thị trường.
-- rating_count đại diện cho “nhu cầu” → sản phẩm được đánh giá nhiều hơn = nhiều người quan tâm hơn.
-- Quan sát nhanh thường thấy:
-    + Sản phẩm giá rẻ → rating_count cao (nhu cầu lớn).
-    + Sản phẩm giá cao → rating_count thấp (nhu cầu thấp).
-- Đây là dạng phân tích rất quan trọng trong Phase 3:
-    • Price = biến độc lập.
-    • Rating count = biến phản ánh hành vi thị trường.
+• Biểu đồ scatter giúp quan sát mối quan hệ giữa giá sản phẩm và nhu cầu thị trường.
+• rating_count đại diện cho nhu cầu (sản phẩm được nhiều người đánh giá → nhiều người mua).
+• Thường thấy:
+    - Sản phẩm giá thấp → rating_count cao.
+    - Sản phẩm giá cao → rating_count thấp.
+• Đây là phân tích quan trọng trong Phase 3 vì thể hiện trực quan:
+    X-axis: Price → yếu tố kinh tế
+    Y-axis: Rating Count → hành vi người tiêu dùng
 """)
