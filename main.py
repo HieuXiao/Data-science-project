@@ -1,42 +1,42 @@
-# main.py
+# Data-science-project\main.py
 
+# === IMPORTS ===
 import os
 import sys
 import pandas as pd
-
-# Import functions for data ingestion
 from src.ingestion.data_fetcher import (
     fetch_product_ids,
     fetch_product_details,
     fetch_product_comments
 )
-
-# Import cleaning and merge functions from src/utils.py
 from src.utils import clean_product_data, clean_comments_data, merge_product_and_comment_data
-
-# >>> VISUALIZATION IMPORTS <<<
-# Import implemented Visualization functions
 from src.visualization.line_bar_plot import (
-    create_line_bar_plot,  # Brand Stats (Placeholder in current Task flow)
-    create_line_bar_time_series_plot  # Time Series Trend (P1)
+    create_line_bar_plot,
+    create_line_bar_time_series_plot
 )
-
-# Import Box Plot function (P2)
 from src.visualization.box_plot import create_box_plot
+from src.visualization.scatter_plot import create_scatter_plot
 
-# Import Scatter Plot function (P3)
-from src.visualization.scatter_plot import create_scatter_plot  # <<< ĐÃ THÊM
+# === CONSTANTS: FILE PATHS ===
+# Define all input/output file paths here for centralized management.
 
-# NOTE: Placeholder for create_scatter_plot has been removed since the function is now implemented.
+# --- INGESTION PATHS ---
+PRODUCT_IDS_PATH = 'data/product_id_sach.csv'
+RAW_PRODUCT_PATH = 'data/crawled_data_sach.csv'
+RAW_COMMENTS_PATH = 'data/comments_data_sach.csv'
 
-# >>> END VISUALIZATION IMPORTS <<<
+# --- CLEANING PATHS ---
+CLEANED_PRODUCT_PATH = 'data/cleaned_product_sach.csv'
+CLEANED_COMMENTS_PATH = 'data/cleaned_comments_sach.csv'
+MERGED_DATA_PATH = 'data/merged_tiki_data.csv'
+
+# --- REPORT PATHS ---
+REPORT_PATH = 'reports/'
 
 
+# === ENVIRONMENT SETUP FUNCTION ===
 def setup_environment():
-    """
-    Creates 'data' and 'reports' directories if they do not exist.
-    This ensures necessary file paths are ready before execution.
-    """
+    """Checks for and creates 'data/' and 'reports/' directories if they do not exist."""
     if not os.path.exists('data'):
         os.makedirs('data')
         print("Created directory 'data/'.")
@@ -45,164 +45,153 @@ def setup_environment():
         print("Created directory 'reports/'.")
 
 
+# === DATA INGESTION FUNCTION ===
 def run_data_ingestion():
-    """
-    Executes the entire Data Ingestion workflow from Tiki.
-    This involves fetching product IDs, details, and comments.
-    """
+    """Executes the data fetching pipeline: IDs, Product Details, and Comments."""
     print("\n--- Starting Data Ingestion workflow from Tiki ---")
 
-    # Step 1: Fetch Product IDs
-    df_ids = fetch_product_ids(category_id='8322', max_pages=20, output_path='data/product_id_sach.csv')
+    # 3.1. Fetch Product IDs
+    df_ids = fetch_product_ids(
+        category_id='8322',
+        max_pages=20,
+        output_path=PRODUCT_IDS_PATH
+    )
 
     if df_ids.empty:
         print("\nProcess halted because no product IDs were collected.")
         return
 
-    # Step 2: Fetch Product Details
-    fetch_product_details(input_path='data/product_id_sach.csv', output_path='data/crawled_data_sach.csv')
+    # 3.2. Fetch Product Details
+    fetch_product_details(
+        input_path=PRODUCT_IDS_PATH,
+        output_path=RAW_PRODUCT_PATH
+    )
 
-    # Step 3: Fetch Product Comments
-    fetch_product_comments(input_path='data/product_id_sach.csv', max_comment_pages=5, output_path='data/comments_data_sach.csv')
+    # 3.3. Fetch Product Comments
+    fetch_product_comments(
+        input_path=PRODUCT_IDS_PATH,
+        max_comment_pages=5,
+        output_path=RAW_COMMENTS_PATH
+    )
 
     print("\n--- Data Ingestion workflow completed! ---")
 
 
+# === DATA CLEANING AND MERGING FUNCTION ===
 def run_data_cleaning():
     """
-    Executes the data cleaning functionality for both product details and comments data.
-    It includes a final step to MERGE the two cleaned datasets.
+    Cleans the raw product and comment data, then merges the two cleaned datasets.
     """
     df_product = pd.DataFrame()
     df_comment = pd.DataFrame()
 
-    # Define common file paths
-    input_product_file = 'data/crawled_data_sach.csv'
-    output_product_file = 'data/cleaned_product_sach.csv'
-    input_comment_file = 'data/comments_data_sach.csv'
-    output_comment_file = 'data/cleaned_comments_sach.csv'
-    output_merged_file = 'data/merged_tiki_data.csv'
-
-    # 1. Clean Product Details
-    if os.path.exists(input_product_file):
-        print(f"\n--- Starting cleaning for product details from {input_product_file} ---")
-        df_raw = pd.read_csv(input_product_file)
+    # --- Clean Product Data ---
+    if os.path.exists(RAW_PRODUCT_PATH):
+        print(f"\n--- Starting cleaning for product details from {RAW_PRODUCT_PATH} ---")
+        df_raw = pd.read_csv(RAW_PRODUCT_PATH)
         df_product = clean_product_data(df_raw)
 
         if not df_product.empty:
-            df_product.to_csv(output_product_file, index=False)
-            print(f"✅ Saved {len(df_product)} cleaned data rows to: {output_product_file}")
+            df_product.to_csv(CLEANED_PRODUCT_PATH, index=False)
+            print(f"✅ Saved {len(df_product)} cleaned data rows to: {CLEANED_PRODUCT_PATH}")
         else:
             print(f"⚠️ Skipping saving cleaned product file: DataFrame is empty (0 rows).")
+    else:
+        print(f"⚠️ Raw product file not found at: {RAW_PRODUCT_PATH}. Skipping cleaning.")
 
-    # 2. Clean Product Comments
-    if os.path.exists(input_comment_file):
-        print(f"\n--- Starting cleaning for product comments from {input_comment_file} ---")
-        df_raw = pd.read_csv(input_comment_file)
+    # --- Clean Comments Data ---
+    if os.path.exists(RAW_COMMENTS_PATH):
+        print(f"\n--- Starting cleaning for product comments from {RAW_COMMENTS_PATH} ---")
+        df_raw = pd.read_csv(RAW_COMMENTS_PATH)
         df_comment = clean_comments_data(df_raw)
 
         if not df_comment.empty:
-            df_comment.to_csv(output_comment_file, index=False)
-            print(f"✅ Saved {len(df_comment)} cleaned data rows to: {output_comment_file}")
+            df_comment.to_csv(CLEANED_COMMENTS_PATH, index=False)
+            print(f"✅ Saved {len(df_comment)} cleaned data rows to: {CLEANED_COMMENTS_PATH}")
+        else:
+            print(f"⚠️ Skipping saving cleaned comments file: DataFrame is empty (0 rows).")
+    else:
+        print(f"⚠️ Raw comments file not found at: {RAW_COMMENTS_PATH}. Skipping cleaning.")
 
-    # 3. MERGE DATASETS (If both clean files are available)
+    # --- Merge Data ---
     if not df_product.empty and not df_comment.empty:
-        # Using the in-memory DFs here for simplicity and reduced I/O
-
         df_merged = merge_product_and_comment_data(df_product, df_comment)
 
         if not df_merged.empty:
-            df_merged.to_csv(output_merged_file, index=False)
-            print(f"✅ MERGE SUCCESSFUL. Saved {len(df_merged)} rows to: {output_merged_file}")
+            df_merged.to_csv(MERGED_DATA_PATH, index=False)
+            print(f"✅ MERGE SUCCESSFUL. Saved {len(df_merged)} rows to: {MERGED_DATA_PATH}")
         else:
             print("⚠️ Merge resulted in an empty DataFrame. Check the data structure and keys.")
     else:
         print("\n⚠️ Cannot perform merge: One or both cleaned files are empty/missing.")
 
 
+# === DATA VISUALIZATION FUNCTION ===
 def run_visualization_plots():
-    """
-    Displays the Visualization submenu and handles user plot selection.
-    Menu is updated to reflect all relevant tasks (P1, P2, and P3).
-    """
-    # Define input paths for Visualization
-    INPUT_PRODUCT_PATH = 'data/cleaned_product_sach.csv'
-    INPUT_COMMENT_PATH = 'data/cleaned_comments_sach.csv'
-    INPUT_MERGED_PATH = 'data/merged_tiki_data.csv'
+    """Displays the visualization menu and creates the selected plots."""
 
-    # Check for required data files
-    if not os.path.exists(INPUT_PRODUCT_PATH) or not os.path.exists(INPUT_COMMENT_PATH):
-        print(f"\n⚠️ Error: Missing required cleaned data files. Please run Data Cleaning (Option 2) first.")
-        return
-
-    # Prioritize merged file for general plots
-    input_general_path = INPUT_MERGED_PATH
-
-    # Ensure the required file exists
-    if not os.path.exists(input_general_path):
-        print(f"\n⚠️ Error: The necessary general input file ({input_general_path}) does not exist.")
+    # Check for required cleaned data files
+    if (not os.path.exists(CLEANED_PRODUCT_PATH) or
+            not os.path.exists(CLEANED_COMMENTS_PATH) or
+            not os.path.exists(MERGED_DATA_PATH)):
+        print(f"\n⚠️ Error: Missing required cleaned or merged data files. Please run Data Cleaning (Option 2) first.")
         return
 
     while True:
-        # >>> VISUALIZATION SUBMENU (UPDATED FOR P1, P2 & P3) <<<
         print("\n----------------------------------------------")
-        print("📊 SELECT VISUALIZATION PLOT 📊")
+        print(" SELECT VISUALIZATION PLOT ")
         print("----------------------------------------------")
         print("3.1. Line-Bar: Rating Trend (Avg Rating by Month)")
         print("3.2. Box-plot: Rating Distribution by Brand (Top 10)")
-        print("3.3. Scatter-plot: Review Length vs. Rating (P3)")  # <<< ĐÃ THÊM
-        print("3.4. 🔙 Back to Main Menu")  # <<< ĐÃ CẬP NHẬT
+        print("3.3. Scatter-plot: Review Length vs. Rating (P3)")
+        print("3.4. 🔙 Back to Main Menu")
         print("----------------------------------------------")
-        # >>> END VISUALIZATION SUBMENU <<<
 
         vis_choice = input("Please select plot type (e.g., 3.1): ").strip()
 
         if vis_choice=='3.1':
             print("Creating Line-Bar Rating Trend Plot...")
             create_line_bar_time_series_plot(
-                input_path=INPUT_MERGED_PATH,
-                output_path='reports/linebar_rating_time_series.png'
+                input_path=MERGED_DATA_PATH,
+                output_path=os.path.join(REPORT_PATH, 'linebar_rating_time_series.png')
             )
-            print("✅ Line-Bar Rating Trend Plot completed.")
+            print("Line-Bar Rating Trend Plot completed.")
 
         elif vis_choice=='3.2':
             print("Creating Box Plot (Rating Distribution by Brand)...")
             create_box_plot(
-                input_path=INPUT_MERGED_PATH,
-                output_path='reports/boxplot_rating_by_brand.png'
+                input_path=MERGED_DATA_PATH,
+                output_path=os.path.join(REPORT_PATH, 'boxplot_rating_by_brand.png')
             )
-            print("✅ Box Plot completed.")
+            print("Box Plot completed.")
 
-        elif vis_choice=='3.3':  # <<< ĐÃ THÊM LOGIC CHO SCATTER PLOT
+        elif vis_choice=='3.3':
             print("Creating Scatter Plot (Review Length vs. Rating)...")
             create_scatter_plot(
-                input_path=INPUT_MERGED_PATH,
-                output_path='reports/scatterplot_review_length_vs_rating.png'
+                input_path=MERGED_DATA_PATH,
+                output_path=os.path.join(REPORT_PATH, 'scatterplot_review_length_vs_rating.png')
             )
-            print("✅ Scatter Plot completed.")
+            print("Scatter Plot completed.")
 
-        elif vis_choice=='3.4':  # Back to Main Menu
+        elif vis_choice=='3.4':
             break
         else:
             print("Invalid choice. Please re-enter (e.g., 3.1 or 3.4).")
 
 
+# === MAIN MENU FUNCTION ===
 def main_menu():
-    """
-    Displays the main menu and handles user selection for the entire data workflow.
-    It orchestrates the setup, ingestion, cleaning, and visualization stages.
-    """
-
-    setup_environment()  # Ensure directories exist
+    """Displays and handles the main project functionality choices."""
+    setup_environment()
 
     while True:
         print("\n==============================================")
-        print("🚀 TIKI DATA SCIENCE PROJECT MENU 🚀")
+        print(" TIKI DATA SCIENCE PROJECT MENU ")
         print("==============================================")
-        print("1. 📥 Data Ingestion (Crawl data from Tiki API)")
-        print("2. 🧹 Data Cleaning (Clean crawled data)")
-        print("3. 📊 Data Visualization (Visualize cleaned data)")
-        print("4. ❌ Exit")
+        print("1. Data Ingestion (Crawl data from Tiki API)")
+        print("2. Data Cleaning (Clean crawled data)")
+        print("3. Data Visualization (Visualize cleaned data)")
+        print("0. Exit")
         print("==============================================")
 
         choice = input("Please select a function (Enter number): ").strip()
@@ -213,12 +202,13 @@ def main_menu():
             run_data_cleaning()
         elif choice=='3':
             run_visualization_plots()
-        elif choice=='4':
+        elif choice=='0':
             print("Goodbye! See you again.")
             sys.exit(0)
         else:
-            print("Invalid choice. Please re-enter a number from 1 to 4.")
+            print("Invalid choice. Please re-enter a number from 1 to 3.")
 
 
+# === PROGRAM ENTRY POINT ===
 if __name__=="__main__":
     main_menu()
