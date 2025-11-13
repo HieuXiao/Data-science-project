@@ -1,131 +1,103 @@
-# ==============================
-# 1. IMPORT THƯ VIỆN CẦN THIẾT
-# ==============================
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 import numpy as np
 
-# =====================================================
-# 2. ĐỌC FILE CSV CHỨA DỮ LIỆU BOOKS (CÓ XỬ LÝ ENCODING)
-# =====================================================
-try:
-    # Thử đọc file bằng mã hóa UTF-8
-    books_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/books_to_scrape.csv', encoding='utf-8')
-except UnicodeDecodeError:
+
+# --- PLACEHOLDER: Line-Bar Brand Stats Plot (Giữ lại để không gây lỗi import) ---
+def create_line_bar_plot(input_path, output_path):
+    """Placeholder cho mục Brand Stats, không được gọi trong menu mới."""
+    print("\n[Visualization] Line-Bar Brand Stats Plot: Placeholder is currently active.")
+    pass
+
+
+# --- IMPLEMENTATION: Time Series Trend Plot (Mục tiêu Phụ P1) ---
+def create_line_bar_time_series_plot(input_path, output_path):
+    """
+    Tạo biểu đồ Line-Bar kết hợp để phân tích Xu hướng Hài lòng theo Thời gian (Tháng-Năm).
+    - Bar: Tổng số lượng đánh giá (Count)
+    - Line: Điểm đánh giá trung bình (Avg Rating)
+    """
+    print(f"\n[Visualization] Bắt đầu tạo Biểu đồ Xu hướng Hài lòng theo Thời gian từ: {input_path}")
+
+    if not os.path.exists(input_path):
+        print(f"⚠️ LỖI: File không tồn tại tại đường dẫn: {input_path}")
+        return
+
     try:
-        # Nếu lỗi, thử đọc bằng Latin-1
-        books_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/books_to_scrape.csv', encoding='latin-1')
-    except:
-        # Cuối cùng thử bằng ISO-8859-1
-        books_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/books_to_scrape.csv', encoding='ISO-8859-1')
+        # 1. Đọc dữ liệu
+        df = pd.read_csv(input_path)
 
-# ========================================================
-# 3. ĐỌC FILE CSV CHỨA DỮ LIỆU PRODUCTS (CÓ XỬ LÝ ENCODING)
-# ========================================================
-try:
-    products_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/fakestore_api_products.csv', encoding='utf-8')
-except UnicodeDecodeError:
-    try:
-        products_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/fakestore_api_products.csv', encoding='latin-1')
-    except:
-        products_df = pd.read_csv('/Users/nguyentien/Documents/PDS301m/fakestore_api_products.csv', encoding='ISO-8859-1')
+        # 2. Xử lý cột thời gian (Sử dụng cột đã được làm sạch)
+        df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
 
-# ==================================================
-# 4. TẠO FIGURE GỒM 2 BIỂU ĐỒ (1 HÀNG, 2 CỘT SUBPLOT)
-# ==================================================
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        # Loại bỏ các hàng thiếu giá trị cần thiết
+        df.dropna(subset=['created_at', 'rating'], inplace=True)
 
-# ==========================================
-# 5. XỬ LÝ DỮ LIỆU BOOKS VÀ VẼ BIỂU ĐỒ ax1
-# ==========================================
+        if df.empty:
+            print("⚠️ LỖI: DataFrame trống sau khi xử lý thời gian và rating.")
+            return
 
-# Tính giá trung bình theo rating (gom nhóm theo cột 'rating')
-books_avg_price = books_df.groupby('rating')['price'].mean().sort_index()
+        # 3. Nhóm dữ liệu theo Tháng-Năm (Month-Year)
+        df['Month_Year'] = df['created_at'].dt.to_period('M')
 
-# Vẽ biểu đồ đường biểu diễn giá trung bình
-ax1.plot(books_avg_price.index, books_avg_price.values,
-         marker='o', linewidth=2, markersize=8, color='#2E86AB', label='Giá TB')
+        # Tính toán thống kê
+        time_stats = df.groupby('Month_Year').agg(
+            avg_rating=('rating', 'mean'),
+            review_count=('comment_id', 'size')
+        ).reset_index()
 
-# Vẽ thêm cột (bar chart) để minh họa trực quan
-ax1.bar(books_avg_price.index, books_avg_price.values,
-        alpha=0.3, color='#A23B72', label='Cột giá')
+        # Chuyển Month_Year về định dạng string ('YYYY-MM') để dễ hiển thị trên trục X
+        time_stats['Month_Year'] = time_stats['Month_Year'].dt.strftime('%Y-%m')
 
-# Thiết lập tiêu đề, nhãn trục, lưới và chú thích
-ax1.set_xlabel('Rating (Sao)', fontsize=12, fontweight='bold')
-ax1.set_ylabel('Giá trung bình ($)', fontsize=12, fontweight='bold')
-ax1.set_title('Books: Giá Trung Bình Theo Rating', fontsize=14, fontweight='bold')
-ax1.grid(True, alpha=0.3, linestyle='--')
-ax1.legend()
+        # 4. Vẽ BIỂU ĐỒ LINE BAR
+        fig, ax1 = plt.subplots(figsize=(14, 7))
 
-# Thiết lập trục x từ 1 đến 5 (giá trị rating)
-ax1.set_xticks(range(1, 6))
+        # --- Trục Y chính (Trái): Số lượng đánh giá (Bar Plot) ---
+        color_bar = '#4CAF50'  # Màu xanh lá
+        ax1.set_xlabel('Tháng-Năm', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Tổng số lượng đánh giá (Cột)', color=color_bar, fontsize=12, fontweight='bold')
+        bars = ax1.bar(time_stats['Month_Year'], time_stats['review_count'],
+            color=color_bar, alpha=0.6, label='Số lượng đánh giá')
+        ax1.tick_params(axis='y', labelcolor=color_bar)
 
-# ===================================================
-# 6. XỬ LÝ DỮ LIỆU PRODUCTS VÀ VẼ BIỂU ĐỒ KÉP ax2
-# ===================================================
+        # Tối ưu hóa hiển thị nhãn trục X
+        n = len(time_stats['Month_Year'])
+        step = max(1, n // 10)  # Hiển thị khoảng 10 nhãn
+        ax1.set_xticks(time_stats['Month_Year'][::step])
+        ax1.tick_params(axis='x', rotation=45)
 
-# Gom nhóm dữ liệu theo 'category' và tính thống kê
-category_stats = products_df.groupby('category').agg({
-    'id': 'count',      # Đếm số lượng sản phẩm mỗi danh mục
-    'price': 'mean'     # Tính giá trung bình mỗi danh mục
-}).round(2)             # Làm tròn 2 chữ số thập phân
+        # --- Trục Y phụ (Phải): Điểm đánh giá trung bình (Line Plot) ---
+        ax2 = ax1.twinx()
+        color_line = '#FF5722'  # Màu cam-đỏ
+        ax2.set_ylabel('Điểm đánh giá Trung bình (Đường)', color=color_line, fontsize=12, fontweight='bold')
+        line = ax2.plot(time_stats['Month_Year'], time_stats['avg_rating'],
+            color=color_line, marker='o', linewidth=2, label='Điểm TB')
+        ax2.tick_params(axis='y', labelcolor=color_line)
 
-# Tạo mảng vị trí trục x và bề rộng cột
-x = np.arange(len(category_stats))
-width = 0.35
+        # Thiết lập giới hạn trục Y phụ (Rating từ 1 đến 5)
+        min_rating = time_stats['avg_rating'].min()
+        ax2.set_ylim(max(1.0, min_rating - 0.1), 5.1)
+        ax2.grid(True, linestyle='--', alpha=0.3)
 
-# Tạo trục y phụ để hiển thị giá trung bình (song song với trục chính)
-ax2_twin = ax2.twinx()
+        # Tiêu đề
+        plt.title('Xu hướng Hài lòng & Số lượng đánh giá theo Thời gian', fontsize=16, fontweight='bold')
 
-# Vẽ biểu đồ cột thể hiện số lượng sản phẩm
-bars = ax2.bar(x - width/2, category_stats['id'], width,
-               label='Số lượng SP', color='#F18F01', alpha=0.7)
+        # Gộp chú thích
+        lines_labels = [bars] + line
+        labels = [l.get_label() for l in lines_labels]
+        ax1.legend(lines_labels, labels, loc='upper left')
 
-# Vẽ biểu đồ đường thể hiện giá trung bình
-line = ax2_twin.plot(x, category_stats['price'],
-                     marker='s', linewidth=2.5, markersize=10,
-                     color='#C73E1D', label='Giá TB')
+        # Căn chỉnh bố cục và Lưu biểu đồ
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=300)
+        plt.close(fig)
 
-# Thiết lập nhãn trục, tiêu đề và màu sắc trục
-ax2.set_xlabel('Danh mục', fontsize=12, fontweight='bold')
-ax2.set_ylabel('Số lượng sản phẩm', fontsize=12, fontweight='bold', color='#F18F01')
-ax2_twin.set_ylabel('Giá trung bình ($)', fontsize=12, fontweight='bold', color='#C73E1D')
-ax2.set_title('Products: Số Lượng & Giá TB Theo Danh Mục', fontsize=14, fontweight='bold')
+        print(f"✅ Biểu đồ đã được lưu thành công tại: {output_path}")
 
-# Cài đặt tên danh mục làm nhãn trục X
-ax2.set_xticks(x)
-ax2.set_xticklabels(category_stats.index, rotation=15, ha='right')
+        # In ra bảng thống kê
+        print("\n--- Bảng Thống kê Xu hướng Hài lòng theo Thời gian (Tháng-Năm) ---")
+        print(time_stats.to_markdown(index=False))
 
-# Hiển thị lưới theo trục Y
-ax2.grid(True, alpha=0.3, linestyle='--', axis='y')
-
-# Hiển thị chú thích (legend) cho 2 trục
-ax2.legend(loc='upper left')
-ax2_twin.legend(loc='upper right')
-
-# ===================================
-# 7. TINH CHỈNH & HIỂN THỊ BIỂU ĐỒ
-# ===================================
-plt.tight_layout()                                   # Căn chỉnh bố cục cho gọn
-plt.savefig('linebar_chart.png', dpi=300, bbox_inches='tight')  # Lưu ảnh chất lượng cao
-plt.show()                                           # Hiển thị biểu đồ
-
-# =====================================
-# 8. IN CÁC THỐNG KÊ TỔNG QUAN RA MÀN HÌNH
-# =====================================
-print("=" * 60)
-print("THỐNG KÊ DỮ LIỆU BOOKS")
-print("=" * 60)
-print(f"Tổng số sách: {len(books_df)}")
-print(f"Giá trung bình: ${books_df['price'].mean():.2f}")
-print(f"Rating trung bình: {books_df['rating'].mean():.2f}")
-print("\nGiá trung bình theo Rating:")
-print(books_avg_price)
-
-print("\n" + "=" * 60)
-print("THỐNG KÊ DỮ LIỆU PRODUCTS")
-print("=" * 60)
-print(f"Tổng số sản phẩm: {len(products_df)}")
-print(f"Giá trung bình: ${products_df['price'].mean():.2f}")
-print("\nThống kê theo danh mục:")
-print(category_stats)
+    except Exception as e:
+        print(f"❌ LỖI trong quá trình tạo biểu đồ Line-Bar Time Series: {e}")
