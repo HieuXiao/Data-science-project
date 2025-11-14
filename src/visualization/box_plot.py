@@ -72,7 +72,7 @@ def create_box_plot(input_path, output_path, top_n=10):
         brand_order = data.groupby('brand_name')['rating'].mean().sort_values(ascending=False).index.tolist()
 
         # 2. CONFIGURE AND DRAW BOX PLOT
-        plt.figure(figsize=(14, 8))
+        plt.figure(figsize=(10, 8))
 
         sns.boxplot(
             x='brand_name',
